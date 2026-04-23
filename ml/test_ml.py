@@ -60,29 +60,12 @@ print("\nDetailed aspect-by-aspect summary:")
 for aspect, answer in detailed.items():
     print(f"  {aspect.upper():12s}: {answer}")
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Clause Extraction — NEW
+# 4. Timeline Extraction
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "─" * 60)
-print("4. CLAUSE EXTRACTION  (zero-shot type classification)  ← NEW")
-print("─" * 60)
-
-clauses = extract_clauses(text)
-for cl in clauses:
-    print(f"\n  Text        : {cl['text']}")
-    print(f"  Type        : {cl['clause_type']}  (confidence {cl['confidence']})")
-    print(f"  Top 3       : {cl['top_3']}")
-
-print("\nGrouped by type:")
-grouped = group_by_type(text)
-for ctype, texts in grouped.items():
-    print(f"  {ctype}: {len(texts)} clause(s)")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. Timeline Extraction — NEW
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n" + "─" * 60)
-print("5. TIMELINE EXTRACTION  ← NEW")
+print("4. TIMELINE EXTRACTION")
 print("─" * 60)
 
 timeline = build_timeline(text)

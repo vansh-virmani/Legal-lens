@@ -1,16 +1,3 @@
-from transformers import pipeline
-
-_summarizer = None
-
-ASPECTS = [
-    ("parties",      "Who are the parties involved in this agreement?"),
-    ("duration",     "What is the duration or term of this agreement?"),
-    ("termination",  "How and when can this agreement be terminated?"),
-    ("liability",    "What are the liability limitations or exclusions?"),
-    ("disputes",     "How are disputes or conflicts resolved?"),
-]
-
-
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 _summarizer = None
@@ -25,30 +12,46 @@ def _load_summarizer():
     return _summarizer, _tokenizer
 
 
-def summarize(text: str, mode: str = "brief") -> str:
+def _generate(prompt: str, max_tokens=150) -> str:
     model, tokenizer = _load_summarizer()
-
-    if mode == "brief":
-        prompt = f"Summarize this legal document briefly:\n\n{text}"
-    elif mode == "detailed":
-        prompt = f"Provide a detailed structured summary of this legal document:\n\n{text}"
-    else:
-        prompt = f"Summarize:\n{text}"
 
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
 
     outputs = model.generate(
         **inputs,
-        max_new_tokens=200,
+        max_new_tokens=max_tokens,
         do_sample=False
     )
 
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
 
-def summarize_clause(clause_text: str) -> str:
-    """Explain a single clause in plain English."""
-    model = _load_summarizer()
-    prompt = f"Explain this legal clause in simple language:\n{clause_text}\n\nSimple explanation:"
-    out = model(prompt, max_new_tokens=100, do_sample=False)
-    return out[0]["generated_text"].strip()
+# ── PUBLIC API ─────────────────────────────────────────────
+
+def summarize(text: str, mode: str = "brief"):
+    
+    # 🔹 Brief → return string
+    if mode == "brief":
+        prompt = f"Summarize this legal document briefly:\n\n{text}"
+        return _generate(prompt)
+
+    # 🔹 Detailed → return dict (FIXED)
+    elif mode == "detailed":
+        aspects = {
+            "Parties": "Who are the parties involved?",
+            "Financial": "What are the financial obligations?",
+            "Termination": "What are the termination conditions?",
+            "Liability": "What liabilities exist?",
+        }
+
+        result = {}
+
+        for key, question in aspects.items():
+            prompt = f"{question}\n\n{text}"
+            result[key] = _generate(prompt, max_tokens=120)
+
+        return result
+
+    # fallback
+    else:
+        return _generate(f"Summarize:\n{text}")
