@@ -11,53 +11,39 @@ ASPECTS = [
 ]
 
 
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+_summarizer = None
+_tokenizer = None
+
+
 def _load_summarizer():
-    global _summarizer
+    global _summarizer, _tokenizer
     if _summarizer is None:
-        _summarizer = pipeline(
-            "text2text-generation",
-            model="google/flan-t5-base",
-        )
-    return _summarizer
+        _tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+        _summarizer = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+    return _summarizer, _tokenizer
 
 
-def summarize(text: str, mode: str = "brief") -> str | dict:
-    """
-    Summarise a legal document.
-
-    Args:
-        text : document string
-        mode : "brief"    → single plain-English summary (str)
-               "detailed" → aspect-by-aspect dict
-
-    Returns:
-        str  (brief mode)
-        dict (detailed mode) with keys: parties, duration, termination,
-                                         liability, disputes
-    """
-    model = _load_summarizer()
+def summarize(text: str, mode: str = "brief") -> str:
+    model, tokenizer = _load_summarizer()
 
     if mode == "brief":
-        prompt = (
-            "Summarise the following legal agreement in simple, plain English "
-            "so a non-lawyer can understand it:\n\n"
-            f"{text}\n\nSummary:"
-        )
-        out = model(prompt, max_new_tokens=200, do_sample=False)
-        return out[0]["generated_text"].strip()
+        prompt = f"Summarize this legal document briefly:\n\n{text}"
+    elif mode == "detailed":
+        prompt = f"Provide a detailed structured summary of this legal document:\n\n{text}"
+    else:
+        prompt = f"Summarize:\n{text}"
 
-    if mode == "detailed":
-        summaries = {}
-        for key, question in ASPECTS:
-            prompt = (
-                f"Based on this legal document, answer: {question}\n\n"
-                f"Document:\n{text}\n\nAnswer:"
-            )
-            out = model(prompt, max_new_tokens=100, do_sample=False)
-            summaries[key] = out[0]["generated_text"].strip()
-        return summaries
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
 
-    raise ValueError(f"Unknown mode '{mode}'. Use 'brief' or 'detailed'.")
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=200,
+        do_sample=False
+    )
+
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 
 def summarize_clause(clause_text: str) -> str:
